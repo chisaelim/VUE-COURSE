@@ -1,29 +1,33 @@
 <template>
-    <h1>Dashboard</h1>
-    <RouterLink to="/signup">Go to Sign Up</RouterLink>
-    <br>
-    <br>
-    <br>
-    <router-link :to="{ name: 'SignIn' }">Go to Sign In</router-link>
-    <br>
-    <br>
-    <br>
-    <button @click="goBack">Go Back</button>
-    <button @click="goForward">Go Forward</button>
+    <div class="content-wrapper" style="min-height: 1157px;">
+        <!-- Content Header (Page header) -->
+        <div class="content-header">
+            <div class="container-fluid">
+                <div class="row mb-2">
+                    <div class="col-sm-6">
+                        <h1 class="m-0">Dashboard</h1>
+                    </div><!-- /.col -->
+                    <div class="col-sm-6">
+                        <ol class="breadcrumb float-sm-right">
+                            <li class="breadcrumb-item"><a href="#">Home</a></li>
+                            <li class="breadcrumb-item active">Dashboard v1</li>
+                        </ol>
+                    </div><!-- /.col -->
+                </div><!-- /.row -->
+            </div><!-- /.container-fluid -->
+        </div>
+        <!-- /.content-header -->
+
+        <!-- Main content -->
+        <section class="content">
+            <div class="container-fluid">
+
+            </div>
+        </section>
+        <!-- /.content -->
+    </div>
 </template>
 
 <script setup>
-import { useRouter } from 'vue-router'
-const router = useRouter()
-
-function goBack() {
-    // router.back(); // option 1
-    router.go(-1); // option 2
-}
-
-function goForward() {
-    // router.forward(); // option 1
-    router.go(1); // option 2
-}
 
 </script>
