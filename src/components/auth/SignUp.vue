@@ -7,33 +7,46 @@
                 </div>
                 <div class="card-body">
                     <p class="login-box-msg">Sign up for a new membership</p>
-                    <form>
+                    <form @submit.prevent="signUp">
                         <div class="input-group mb-3">
-                            <input type="text" class="form-control" placeholder="Name" />
+                            <input type="text" v-model="user.name" class="form-control" placeholder="Name"
+                                :class="{ 'is-invalid': !!userError.name }" />
                             <div class="input-group-append">
                                 <div class="input-group-text">
                                     <span class="fas fa-user"></span>
                                 </div>
                             </div>
+                            <div class="invalid-feedback">
+                                {{ userError.name }}
+                            </div>
                         </div>
                         <div class="input-group mb-3">
-                            <input type="email" class="form-control" placeholder="Email" />
+                            <input type="email" v-model="user.email" class="form-control" placeholder="Email"
+                                :class="{ 'is-invalid': !!userError.email }" />
                             <div class="input-group-append">
                                 <div class="input-group-text">
                                     <span class="fas fa-envelope"></span>
                                 </div>
                             </div>
+                            <div class="invalid-feedback">
+                                {{ userError.email }}
+                            </div>
                         </div>
                         <div class="input-group mb-3">
-                            <input type="password" class="form-control" placeholder="Password" autocomplete />
+                            <input type="password" v-model="user.password" class="form-control" placeholder="Password"
+                                autocomplete :class="{ 'is-invalid': !!userError.password }" />
                             <div class="input-group-append">
                                 <div class="input-group-text">
                                     <span class="fas fa-lock"></span>
                                 </div>
                             </div>
+                            <div class="invalid-feedback">
+                                {{ userError.password }}
+                            </div>
                         </div>
                         <div class="input-group mb-3">
-                            <input type="password" class="form-control" placeholder="Confirm Password" autocomplete />
+                            <input type="password" v-model="user.password_confirmation" class="form-control"
+                                placeholder="Confirm Password" autocomplete />
                             <div class="input-group-append">
                                 <div class="input-group-text">
                                     <span class="fas fa-lock"></span>
@@ -57,4 +70,23 @@
     </div>
 </template>
 
-<script setup></script>
+<script setup>
+import { reactive } from "vue";
+
+const user = reactive({
+    name: "",
+    email: "",
+    password: "",
+    password_confirmation: "",
+});
+
+const userError = reactive({
+    name: "",
+    email: "",
+    password: "",
+});
+
+async function signUp() {
+    console.log("signUp");
+}
+</script>
