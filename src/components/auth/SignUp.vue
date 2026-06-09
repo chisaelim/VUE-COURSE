@@ -73,7 +73,8 @@
 <script setup>
 import { useRouter } from "vue-router";
 import { reactive } from "vue";
-import { LoadingModal, MessageModal } from "@/functions/swal";
+import { apiSignUp } from "@/functions/api/auth";
+import { LoadingModal, MessageModal, CloseModal } from "@/functions/swal";
 const router = useRouter();
 
 const user = reactive({
@@ -100,14 +101,14 @@ function resetAllState() {
 async function signUp() {
     try {
         LoadingModal('Signing Up...');
-
-        await new Promise((resolve) => setTimeout(resolve, 2000)); // Simulate API call
+        const response = await apiSignUp(user);
+        const { data } = response;
 
         resetAllState();
         return MessageModal({
             icon: "success",
             title: "Success",
-            text: "Your account has been created successfully."
+            text: data.message,
         },
             () => {
                 router.replace({ name: "SignIn" });
@@ -117,7 +118,16 @@ async function signUp() {
         if (!response) {
             return MessageModal({ icon: "error", title: "Error", text: error.message });
         }
-        //!!! Handle validation errors from the server
+        const { status, data } = response;
+        if (status === 422) {
+            Object.keys(userError).forEach((key) => {
+                userError[key] = data.errors[key]
+                    ? data.errors[key][0]
+                    : "";
+            });
+            return CloseModal();
+        }
+        return MessageModal({ icon: "error", title: "Error", text: data.message });
     }
 }
 </script>

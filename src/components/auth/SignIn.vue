@@ -52,7 +52,12 @@
 <script setup>
 import { useRouter } from "vue-router";
 import { reactive } from "vue";
+import { apiSignIn } from "@/functions/api/auth";
 import { LoadingModal, MessageModal, CloseModal } from "@/functions/swal";
+
+// Uncomment the following lines if you have a user store set up
+// import { useUserStore } from "@/stores/user";
+// const userStore = useUserStore();
 
 const router = useRouter();
 
@@ -77,8 +82,12 @@ function resetAllState() {
 async function signIn() {
     try {
         LoadingModal('Signing In...');
+        const response = await apiSignIn(user);
+        const { data } = response;
 
-        await new Promise((resolve) => setTimeout(resolve, 2000)); // Simulate API call
+        // Uncomment the following lines if you have a user store set up
+        // userStore.setState(data.user);
+        // userStore.setSanctumToken(data.token);
 
         resetAllState();
         router.replace({ name: "Dashboard" });
@@ -88,7 +97,16 @@ async function signIn() {
         if (!response) {
             return MessageModal({ icon: "error", title: "Error", text: error.message });
         }
-        //!!! Handle validation errors from the server
+        const { status, data } = response;
+        if (status === 422) {
+            Object.keys(userError).forEach((key) => {
+                userError[key] = data.errors[key]
+                    ? data.errors[key][0]
+                    : "";
+            });
+            return CloseModal();
+        }
+        return MessageModal({ icon: "error", title: "Error", text: data.message });
     }
 }
 </script>
