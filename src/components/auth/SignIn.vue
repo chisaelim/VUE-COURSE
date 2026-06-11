@@ -55,9 +55,8 @@ import { reactive } from "vue";
 import { apiSignIn } from "@/functions/api/auth";
 import { LoadingModal, MessageModal, CloseModal } from "@/functions/swal";
 
-// Uncomment the following lines if you have a user store set up
-// import { useUserStore } from "@/stores/user";
-// const userStore = useUserStore();
+import { useUserStore } from "@/stores/user";
+const userStore = useUserStore();
 
 const router = useRouter();
 
@@ -85,9 +84,8 @@ async function signIn() {
         const response = await apiSignIn(user);
         const { data } = response;
 
-        // Uncomment the following lines if you have a user store set up
-        // userStore.setState(data.user);
-        // userStore.setSanctumToken(data.token);
+        userStore.setState(data.user);
+        userStore.setSanctumToken(data.token);
 
         resetAllState();
         router.replace({ name: "Dashboard" });
