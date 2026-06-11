@@ -14,7 +14,7 @@
                     <img :src="emptyImage" class="img-circle elevation-2" alt="User Image">
                 </div>
                 <div class="info">
-                    <a href="#" class="d-block">Alexander Pierce</a>
+                    <router-link :to="{ name: 'Profile' }" class="d-block">{{ userStore.name }}</router-link>
                 </div>
             </div>
 
@@ -41,4 +41,6 @@
 <script setup>
 import logoImage from '@/assets/images/logoImago.webp';
 import emptyImage from '@/assets/images/emptyImage.png';
+import { useUserStore } from '@/stores/user';
+const userStore = useUserStore();
 </script>
