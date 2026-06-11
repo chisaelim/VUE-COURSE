@@ -29,8 +29,24 @@
                         <div class="card card-primary card-outline">
                             <div class="card-body box-profile">
                                 <div class="text-center">
-                                    <img class="profile-user-img img-fluid img-circle" :src="emptyImage"
+                                    <img class="profile-user-img img-fluid img-circle"
+                                        :src="previewImage || userStore.profile_image || emptyImage"
                                         alt="User profile picture" />
+                                    <input @change="onChangeImage" type="file" class="d-none"
+                                        :accept="allowedExtensions.map((ext) => '.' + ext).join(', ')"
+                                        id="file-input" />
+                                    <div class="mt-1">
+                                        <label :for="'file-input'">
+                                            <a type="button" class="m-1 btn btn-primary btn-sm"><i
+                                                    class="fas fa-upload"></i></a>
+                                        </label>
+                                        <a v-if="userStore.profile_image" type="button" @click="deleteImage()"
+                                            class="m-1 btn btn-danger btn-sm"><i class="fas fa-trash"></i></a>
+                                        <a v-if="previewImage" type="button" @click="resetImage()"
+                                            class="m-1 btn btn-secondary btn-sm"><i class="fas fa-undo-alt"></i></a>
+                                        <a v-if="previewImage" type="button" @click="updateImage()"
+                                            class="m-1 btn btn-success btn-sm"><i class="fas fa-check"></i></a>
+                                    </div>
                                 </div>
 
                                 <h3 class="profile-username text-center">{{ userStore.name }}</h3>
@@ -107,12 +123,15 @@
 
 <script setup>
 import emptyImage from "@/assets/images/emptyImage.png";
-import { reactive } from "vue";
+import { reactive, ref } from "vue";
 import { useUserStore } from '@/stores/user';
 import { CloseModal, LoadingModal, MessageModal } from "@/functions/swal";
 import { useRouter } from "vue-router";
+import Swal from "sweetalert2";
 import {
     apiChangePassword,
+    apiDeleteProfileImage,
+    apiUpdateProfileImage,
 } from "@/functions/api/auth";
 
 const userStore = useUserStore();
@@ -166,4 +185,95 @@ async function savePassword() {
     }
 }
 
+const previewImage = ref(null);
+const selectedImageFile = ref(null);
+const allowedExtensions = ["jpg", "jpeg", "png"];
+
+function onChangeImage(event) {
+    const files = event.target.files;
+    if (files && files.length > 0) {
+        const extFile = files[0].name.split(".").pop()?.toLowerCase();
+        if (!allowedExtensions.includes(extFile)) {
+            return MessageModal({ icon: "error", title: "Error", text: "Only jpg/jpeg and png files are allowed!" });
+        }
+        const reader = new FileReader();
+        reader.onloadend = function () {
+            const img = new Image();
+            img.onerror = function () {
+                return MessageModal({ icon: "error", title: "Error", text: "Failed to load image. Please try a different file." });
+            };
+            img.onload = function () {
+                const canvas = document.createElement("canvas");
+                const ctx = canvas.getContext("2d");
+
+                // Set canvas size to 454x454
+                canvas.width = 454;
+                canvas.height = 454;
+
+                // Calculate crop dimensions (center crop)
+                const size = Math.min(img.width, img.height);
+                const x = (img.width - size) / 2;
+                const y = (img.height - size) / 2;
+
+                // Draw image cropped and resized to 454x454
+                ctx.drawImage(img, x, y, size, size, 0, 0, 454, 454);
+
+                canvas.toBlob((blob) => {
+                    if (!blob) {
+                        return MessageModal({ icon: "error", title: "Error", text: "Failed to process image. Please try again." });
+                    }
+
+                    selectedImageFile.value = new File([blob], "profile.png", { type: "image/png" });
+                    previewImage.value = canvas.toDataURL("image/png");
+                }, "image/png");
+            };
+            img.src = reader.result;
+        };
+        reader.readAsDataURL(files[0]);
+        event.target.value = null;
+    }
+}
+
+function resetImage() {
+    selectedImageFile.value = null;
+    previewImage.value = null;
+}
+
+async function deleteImage() {
+    await Swal.fire({
+        title: 'Are you sure?',
+        text: "You will delete your profile image!",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#3085d6',
+        cancelButtonColor: '#d33',
+        confirmButtonText: 'Yes, delete it!'
+    }).then(async (result) => {
+        if (result.isConfirmed) {
+            try {
+                LoadingModal('Deleting profile image...');
+                const response = await apiDeleteProfileImage();
+                userStore.profile_image = null;
+                userStore.profile_thumbnail = null;
+                resetImage();
+                await MessageModal({ icon: "success", title: "Success", text: response.data.message });
+            } catch (error) {
+                return MessageModal({ icon: "error", title: "Error", text: error.response?.data?.message || error.message });
+            }
+        }
+    });
+}
+
+async function updateImage() {
+    try {
+        LoadingModal('Saving profile image...');
+        const response = await apiUpdateProfileImage(selectedImageFile.value);
+        userStore.profile_image = response.data.profile_image;
+        userStore.profile_thumbnail = response.data.profile_thumbnail;
+        resetImage();
+        await MessageModal({ icon: "success", title: "Success", text: response.data.message });
+    } catch (error) {
+        return MessageModal({ icon: "error", title: "Error", text: error.response?.data?.message || error.message });
+    }
+}
 </script>
