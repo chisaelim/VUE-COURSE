@@ -8,12 +8,22 @@ import router from './router';
 import { useUserStore } from '@/stores/user';
 import { apiVerify } from '@/functions/api/auth';
 import { createPinia } from 'pinia'
+import axios from 'axios';
 
 const pinia = createPinia();
 
 createApp(App).use(router).use(pinia).mount('#app');
 
 const userStore = useUserStore();
+
+axios.interceptors.request.use((config) => {
+    const token = userStore.getSanctumToken();
+    if (token && !config.headers.Authorization) {
+        config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+});
+
 router.beforeEach(async (to, from) => {
     const { guarded } = to.meta;
     if (guarded === undefined) { // if the route is not guarded, we don't need to verify the token
@@ -21,8 +31,7 @@ router.beforeEach(async (to, from) => {
     }
 
     try {
-        const token = userStore.getSanctumToken();
-        const response = await apiVerify(token);
+        const response = await apiVerify();
         const { data } = response;
         userStore.setState(data.user);
     } catch (error) {

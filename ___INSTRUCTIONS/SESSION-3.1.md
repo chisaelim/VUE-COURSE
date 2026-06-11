@@ -1,3 +1,119 @@
+# Setting Up Password Change in a Vue 3 Project
+
+This session connects the Profile page password form to the backend API, centralizes Sanctum token injection with an Axios interceptor, and updates the auth API helper so protected requests can be made consistently across the app.
+
+---
+
+## Step 1 - Edit: src/main.js
+
+Move token handling into a global Axios request interceptor, then simplify route-token verification to call `apiVerify()` without manually passing a token.
+
+**Full file (copyable):**
+
+```js
+import 'bootstrap/dist/js/bootstrap.bundle.min.js';
+import 'admin-lte/dist/js/adminlte.min.js';
+
+
+import { createApp } from 'vue'
+import App from './App.vue'
+import router from './router';
+import { useUserStore } from '@/stores/user';
+import { apiVerify } from '@/functions/api/auth';
+import { createPinia } from 'pinia'
+import axios from 'axios';
+
+const pinia = createPinia();
+
+createApp(App).use(router).use(pinia).mount('#app');
+
+const userStore = useUserStore();
+
+axios.interceptors.request.use((config) => {
+    const token = userStore.getSanctumToken();
+    if (token && !config.headers.Authorization) {
+        config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+});
+
+router.beforeEach(async (to, from) => {
+    const { guarded } = to.meta;
+    if (guarded === undefined) { // if the route is not guarded, we don't need to verify the token
+        return;
+    }
+
+    try {
+        const response = await apiVerify();
+        const { data } = response;
+        userStore.setState(data.user);
+    } catch (error) {
+        userStore.reset();
+    }
+
+    if (guarded && !userStore.isAuthenticated) { // if the route is guarded and the user is not authenticated, redirect to signin page
+        return { name: 'SignIn' };
+    }
+    if (!guarded && userStore.isAuthenticated) { // if the route is not guarded and the user is authenticated, redirect to dashboard page
+        return { name: 'Dashboard' };
+    }
+});
+```
+
+**Key points:**
+- `axios.interceptors.request.use(...)` runs before every request and is the single place where the Sanctum token is attached.
+- `userStore.getSanctumToken()` provides the current token from Pinia without repeating retrieval logic in each API function.
+- `if (token && !config.headers.Authorization)` prevents overriding an explicitly provided Authorization header.
+- `apiVerify()` is now called without parameters because authentication is handled automatically by the interceptor.
+
+---
+
+## Step 2 - Edit: src/functions/api/auth.js
+
+Refactor `apiVerify` to rely on interceptor-based authentication and add a dedicated API function for password change.
+
+**Full file (copyable):**
+
+```js
+import axios from 'axios';
+
+const APP_API_URL = import.meta.env.VITE_APP_API_URL;
+
+export async function apiSignUp(user) {
+    return await axios.post(APP_API_URL + '/signup', user);
+}
+export async function apiSignIn(user) {
+    return await axios.post(APP_API_URL + '/signin', user);
+}
+export async function apiSignOut(token) {
+    return await axios.post(APP_API_URL + '/signout', null, {
+        headers: {
+            Authorization: `Bearer ${token}`
+        }
+    });
+}
+export async function apiVerify() {
+    return await axios.get(APP_API_URL + '/verify');
+}
+export async function apiChangePassword(current_password, new_password, new_password_confirmation) {
+    return await axios.put(APP_API_URL + '/change/password', { current_password, new_password, new_password_confirmation });
+}
+```
+
+**Key points:**
+- `apiVerify()` no longer accepts `token` because Authorization is now globally injected.
+- `apiChangePassword(...)` wraps the backend endpoint `PUT /change/password` into a reusable function.
+- Passing `{ current_password, new_password, new_password_confirmation }` as an object maps directly to expected Laravel-style validation field names.
+
+---
+
+## Step 3 - Edit: src/components/auth/Profile.vue
+
+Implement submit logic for the password form: show loading state, call the API, clear form/errors on success, redirect to SignIn, and display validation/server errors with modal feedback.
+
+**Full file (copyable):**
+
+```vue
 <template>
     <div class="content-wrapper" style="min-height: 1416px">
         <!-- Content Header (Page header) -->
@@ -167,3 +283,21 @@ async function savePassword() {
 }
 
 </script>
+```
+
+**Key points:**
+- `LoadingModal('Saving password...')` provides immediate submit feedback while the request is in progress.
+- `apiChangePassword(...)` sends the three form fields to the backend in one request.
+- `resetAllState()` clears both form values and previous validation messages after success.
+- `MessageModal(..., () => router.push({ name: 'SignIn' }))` confirms success, then redirects to SignIn so the user can authenticate with the new password.
+- `status === 422` maps backend field validation errors to `userError` for inline display on matching inputs.
+- `CloseModal()` closes loading feedback when the issue is a field-level validation error and the user should stay on the form.
+
+---
+
+## Result
+
+After this setup:
+- All protected API requests can automatically receive the Sanctum Bearer token via Axios interceptor.
+- Route verification stays cleaner because `apiVerify()` no longer needs manual token passing.
+- The Profile page password form now performs a complete real submit flow with loading/success/error UX and inline validation feedback.
