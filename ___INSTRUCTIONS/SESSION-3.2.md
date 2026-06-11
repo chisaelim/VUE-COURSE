@@ -1,3 +1,64 @@
+# Setting Up Profile Image Upload in a Vue 3 Project
+
+This session adds a full profile image management experience to the Profile page: client-side file validation, Canvas-based center-crop resize, a live preview, and API calls to upload or delete the image on the server. Two new API helper functions are also added to `auth.js`.
+
+---
+
+## Step 1 - Edit: src/functions/api/auth.js
+
+Add `apiUpdateProfileImage` and `apiDeleteProfileImage` to handle the two backend image endpoints.
+
+**Full file (copyable):**
+
+```js
+import axios from 'axios';
+
+const APP_API_URL = import.meta.env.VITE_APP_API_URL;
+
+export async function apiSignUp(user) {
+    return await axios.post(APP_API_URL + '/signup', user);
+}
+export async function apiSignIn(user) {
+    return await axios.post(APP_API_URL + '/signin', user);
+}
+export async function apiSignOut(token) {
+    return await axios.post(APP_API_URL + '/signout', null, {
+        headers: {
+            Authorization: `Bearer ${token}`
+        }
+    });
+}
+export async function apiVerify() {
+    return await axios.get(APP_API_URL + '/verify');
+}
+export async function apiChangePassword(current_password, new_password, new_password_confirmation) {
+    return await axios.put(APP_API_URL + '/change/password', { current_password, new_password, new_password_confirmation });
+}
+export async function apiUpdateProfileImage(image) {
+    const formData = new FormData();
+    formData.append('profile_image', image);
+    formData.append('_method', 'PUT');
+    return await axios.post(APP_API_URL + '/update/profile-image', formData);
+}
+export async function apiDeleteProfileImage() {
+    return await axios.delete(APP_API_URL + '/delete/profile-image');
+}
+```
+
+**Key points:**
+- `apiUpdateProfileImage(image)` sends a `File` object as multipart form data — the only way to upload binary files with Axios.
+- `formData.append('_method', 'PUT')` is a Laravel method spoofing convention; the request is `POST` but Laravel reads `_method` and treats it as a `PUT`.
+- `apiDeleteProfileImage()` sends a plain `DELETE` with no body — the Axios interceptor (from Session 3.1) will attach the Bearer token automatically.
+
+---
+
+## Step 2 - Edit: src/components/auth/Profile.vue
+
+Add profile image state, client-side validation + Canvas crop/resize processing, live preview UI with upload/delete/reset/save controls, and `saveProfileImage` to commit or remove the image via the API.
+
+**Full file (copyable):**
+
+```vue
 <template>
     <div class="content-wrapper" style="min-height: 1416px">
         <!-- Content Header (Page header) -->
@@ -268,3 +329,29 @@ async function saveProfileImage() {
     }
 }
 </script>
+```
+
+**Key points:**
+- `:src="tempImage"` — the preview image always shows the local working state, not the store value directly, so changes are visible before saving.
+- `<input type="file" class="d-none" id="file-input" />` — the actual file input is hidden; a `<label :for="'file-input'">` wrapping a styled button acts as its visible trigger.
+- `:accept="allowedExtensions.map((ext) => '.' + ext).join(', ')"` — restricts the OS file picker to `.jpg, .jpeg, .png` without hardcoding the string.
+- `v-if="imageChanged"` — the save (checkmark) button only appears when `tempImage` differs from the stored profile image, preventing unnecessary API calls.
+- `watch(() => profileImage.value, ..., { immediate: true })` — seeds `tempImage` with the current store image as soon as the component mounts, and keeps it in sync if the store is updated externally.
+- `imageChanged` computed — compares `tempImage` reference to `profileImage.value ?? emptyImage` so the flag resets automatically after a successful save updates the store.
+- `FileReader` reads the selected file as a data URL; the result is fed to an `Image` element to obtain natural dimensions before processing.
+- `Math.min(img.width, img.height)` — finds the largest square that fits inside the original image, enabling a center crop.
+- `ctx.drawImage(img, x, y, size, size, 0, 0, 454, 454)` — crops and scales in a single draw call to a fixed 454×454 canvas.
+- `canvas.toBlob(...)` — converts the canvas to a binary `Blob`; wrapped in `new File(...)` so it can be sent as multipart form data.
+- `event.target.value = null` — resets the file input after processing, allowing the same file to be re-selected if the user cancels and tries again.
+- `isDeleting` — single flag that determines whether to call delete or update, keeping `saveProfileImage` concise.
+- `userStore.profile_image` and `userStore.profile_thumbnail` are updated directly from the response after a successful save so the rest of the app reflects the change immediately.
+
+---
+
+## Result
+
+After this setup:
+- The profile card shows a live image preview of any selected file before it is uploaded.
+- Users can upload a new image, remove the current one, or discard local changes with separate action buttons.
+- The save button only appears when there is an uncommitted change, preventing accidental empty requests.
+- Uploaded images are always delivered to the server as a uniform 454×454 PNG regardless of the original file's dimensions.
