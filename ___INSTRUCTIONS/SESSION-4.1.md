@@ -1,3 +1,31 @@
+# Adding a Form Modal for Test CRUD Operations in Vue 3
+
+This session enhances the Tests page with a reusable form modal for creating and editing test records. You'll install jQuery for modal control, add reactive form state management, build a Bootstrap modal dialog with input validation feedback, and wire up click handlers for the Add, View, and Delete action buttons. The modal opens and closes with state reset.
+
+---
+
+## Step 1 - Run Command: Install jQuery
+
+jQuery is needed to control Bootstrap modals programmatically.
+
+```bash
+npm i jquery@3.7.1
+```
+
+**Key points:**
+- jQuery is already used by the AdminLTE template (loaded via the HTML template).
+- This npm install adds jQuery to `node_modules` so you can `import` it in Vue components.
+- Bootstrap modals use jQuery methods like `.modal('show')` and `.modal('hide')`.
+
+---
+
+## Step 2 - Edit: src/components/pages/Test.vue
+
+Add jQuery, SweetAlert2, and Composition API imports. Add reactive form state, modal HTML, and event handler functions.
+
+**Full file (copyable):**
+
+```vue
 <template>
   <div class="content-wrapper">
     <div class="content-header">
@@ -169,3 +197,38 @@ function showModal() {
   $('#TEST-MODAL').modal('show');
 }
 </script>
+```
+
+**Key points:**
+- `import $ from 'jquery'` — import jQuery for modal control.
+- `import Swal from 'sweetalert2'` — import for delete confirmation dialog.
+- `reactive()` — creates reactive objects for form data and validation errors (unlike `ref`, properties are auto-unwrapped).
+- `testObj` — holds the form input values (id, name_en, name_kh, short_name).
+- `testErrObj` — holds validation error messages for each field (empty string = no error).
+- `v-model="testObj.name_kh"` — two-way binding between input and reactive object.
+- `:class="{ 'is-invalid': !!testErrObj.name_kh }"` — dynamically add CSS class when error exists.
+- `{{ testErrObj.name_kh }}` — display error message below the input.
+- `@submit.prevent="saveTest()"` — form submit handler with `.prevent` to stop page reload.
+- `@click="showModal()"` on Add button — opens the modal.
+- `@click="viewTest(test.id)"` on View button — opens modal and loads test data (not yet implemented).
+- `@click="removeTest(test.id)"` on Delete button — shows delete confirmation.
+- `$('#TEST-MODAL').on('hide.bs.modal', ...)` — jQuery event listener to reset form when modal closes.
+- `defaultTestObj` and `defaultTestErrObj` — snapshots of initial state for clean resets.
+- `Object.assign(testObj, defaultTestObj)` — copies default values back into the reactive object to clear the form.
+- `$('#TEST-MODAL').modal('show')` and `.modal('hide')` — jQuery methods to open/close the modal.
+- `Swal.fire({...})` — SweetAlert2 creates a confirmation dialog for delete.
+
+---
+
+## Result
+
+After completing this step, you will have:
+
+1. ✓ jQuery installed and available for importing in components.
+2. ✓ A Bootstrap modal dialog that opens when you click "Add" on the table header or "View" on each row.
+3. ✓ Three form input fields with two-way data binding and inline validation error display.
+4. ✓ Form state that resets to empty every time the modal closes.
+5. ✓ A delete confirmation dialog that fires when clicking the "Delete" button.
+6. ✓ Modal control functions (`showModal`, `hideModal`) ready for use by all buttons.
+
+The form is now interactive. Clicking buttons opens/closes the modal. Typing in inputs updates the reactive state. Errors will display once backend validation is wired up (next steps).
