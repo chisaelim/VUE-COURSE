@@ -1,3 +1,183 @@
+# Integrating an Image Cropper in a Vue 3 Project
+
+This guide walks through adding an image cropping and uploading feature to a student management system. We'll use the `vue-advanced-cropper` library to provide a user-friendly way to handle profile pictures.
+
+---
+
+### Step 1 - Run Command: Install Dependencies
+
+First, we need to add the `vue-advanced-cropper` package to our project.
+
+```bash
+npm install vue-advanced-cropper
+```
+
+**Key points:**
+- This command downloads and installs the specified package from the npm registry.
+- It also adds the package to our project's `package.json` and `package-lock.json` files, ensuring that it's part of the project's dependencies.
+
+---
+
+### Step 2 - Create New: The Cropper Modal Component
+
+Next, we'll create a reusable component to handle the image cropping functionality. This component will include the cropper UI inside a modal dialog.
+
+**File:** `src/components/includes/controls/CropperModal.vue`
+
+```vue
+<template>
+  <div class="d-flex flex-column align-items-center m-3">
+    <img v-bind="$attrs" :src="model || emptyImage" class="profile-user-img img-fluid" alt="picture" />
+    <input :disabled="disabled" @change="onImageChanged($event)" type="file" class="d-none"
+      :class="{ 'is-invalid': modelError !== null }" :accept="props.extensions.map(ext => `.${ext}`).join(', ')"
+      :id="`file-input-${props.id}`" />
+    <div class="invalid-feedback text-center">{{ modelError }}</div>
+    <div class="mt-1">
+      <label :for="disabled ? '' : `file-input-${props.id}`">
+        <a type="button" :class="{ disabled: disabled }" class="m-1 btn btn-primary btn-sm" title="upload image"><i
+            class="fas fa-upload"></i></a>
+      </label>
+      <a type="button" :class="{ disabled: disabled }" @click="onImageRemove()" class="m-1 btn btn-danger btn-sm"
+        title="delete image"><i class="fas fa-trash"></i></a>
+      <a type="button" :class="{ disabled: disabled }" @click="onImageReset()" class="m-1 btn btn-secondary btn-sm"
+        title="reset image"><i class="fas fa-undo-alt"></i></a>
+    </div>
+  </div>
+  <div class="modal fade" :id="props.id" data-backdrop="static" data-keyboard="false" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-xl">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Crop Image Modal</h5>
+          <button type="button" class="close" @click="hideCropperModal">
+            <span>×</span>
+          </button>
+        </div>
+        <div class="modal-body">
+          <Cropper ref="cropperRef" class="cropper" :src="cropSrc"
+            :stencil-props="{ aspectRatio: props.width / props.height }" @change="onCropChange" />
+        </div>
+        <div class="modal-footer justify-content-between">
+          <button type="button" @click="hideCropperModal" class="btn btn-secondary">
+            Cancel
+          </button>
+          <button @click="onImageCropped()" type="button" class="btn btn-primary">
+            Crop
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+<script setup>
+import $ from 'jquery';
+import { ref, onMounted } from 'vue';
+import emptyImage from "@/assets/images/emptyImage.png";
+import { Cropper } from 'vue-advanced-cropper'
+import 'vue-advanced-cropper/dist/style.css';
+
+const model = defineModel({ required: true });
+const current = defineModel("current", { required: false, default: null });
+const modelError = defineModel("error", { required: false, default: null });
+
+const props = defineProps({
+  id: {
+    type: String,
+    default: () => `CROPPER-MODAL-${Math.random().toString(36).substring(2, 9)}`,
+  },
+  width: {
+    type: Number,
+    default: 454,
+  },
+  height: {
+    type: Number,
+    default: 454,
+  },
+  disabled: {
+    type: Boolean,
+    default: false,
+  },
+  extensions: {
+    type: Array,
+    default: () => ['jpg', 'jpeg', 'png'],
+  },
+});
+const cropSrc = ref(null);
+const cropperRef = ref(null);
+let croppedCanvas = null;
+onMounted(() => {
+  $(`#${props.id}`)
+    .on("show.bs.modal", function (e) {
+      e.stopPropagation();
+    })
+    .on("hide.bs.modal", function (e) {
+      croppedCanvas = null;
+      e.stopPropagation();
+    })
+    .on("hidden.bs.modal", function (e) {
+      cropSrc.value = null;
+      e.stopPropagation();
+    });
+});
+const onCropChange = ({ canvas }) => {
+  croppedCanvas = canvas;
+};
+const onImageChanged = (e) => {
+  const files = e.target.files;
+  if (files && files.length > 0) {
+    const fileName = files[0].name;
+    const idxDot = fileName.lastIndexOf(".") + 1;
+    const extFile = fileName.substr(idxDot, fileName.length).toLowerCase();
+    if (!props.extensions.includes(extFile)) {
+      return (modelError.value = `Only ${props.extensions.join('/')} files are allowed!`);
+    }
+    const reader = new FileReader();
+    reader.onloadend = function () {
+      cropSrc.value = reader.result;
+      showCropperModal();
+    };
+    reader.readAsDataURL(files[0]);
+    modelError.value = null;
+    e.target.value = null;
+  }
+};
+const onImageCropped = () => {
+  if (croppedCanvas) {
+    const canvas = document.createElement('canvas');
+    canvas.width = props.width;
+    canvas.height = props.height;
+    canvas.getContext('2d').drawImage(croppedCanvas, 0, 0, props.width, props.height);
+    model.value = canvas.toDataURL('image/png');
+  }
+  hideCropperModal();
+};
+const onImageRemove = () => {
+  model.value = null;
+};
+const onImageReset = () => {
+  model.value = current.value;
+};
+const showCropperModal = () => $(`#${props.id}`).modal("show");
+const hideCropperModal = () => $(`#${props.id}`).modal("hide");
+</script>
+```
+
+**Key points:**
+- **`defineModel`**: We use `defineModel` to create two-way bindings for the image data (`model`), the original image data (`current`), and any validation errors (`error`).
+- **`Cropper` component**: This is the main component from `vue-advanced-cropper`. We set its `src` to the image selected by the user and configure the cropping area with `stencil-props`.
+- **File Input**: A hidden file input is used to trigger the file selection dialog. We check for valid file extensions.
+- **`FileReader`**: This is a standard browser API used to read the selected image file as a data URL, which can then be passed to the cropper.
+- **jQuery for Modals**: We use jQuery to programmatically show and hide the Bootstrap modal.
+- **Canvas API**: After cropping, we use an HTML `<canvas>` element to draw the cropped image, resize it to our desired dimensions, and then get the result as a base64 data URL.
+
+---
+
+### Step 3 - Edit: Integrating the Cropper into the Student Modal
+
+Now, we'll update the `StudentModal` to use our new `CropperModal` component and handle the image data during form submission.
+
+**File:** `src/components/includes/modals/StudentModal.vue`
+
+```vue
 <template>
   <div class="modal fade" id="STUDENT-MODAL" data-backdrop="static" data-keyboard="false" tabindex="-1">
     <div class="modal-dialog modal-xl">
@@ -582,3 +762,188 @@ defineExpose({
   viewStudent
 });
 </script>
+```
+
+**Key points:**
+- **`<CropperModal>` Usage**: We embed the cropper component and use `v-model` to bind `studentObj.photo` to it. `v-model:current` is used to store the initial image when editing a student, and `v-model:error` displays validation messages.
+- **`saveStudent` function**: This function now handles both creating and updating a student. It calls `buildFormData` to prepare the data for submission.
+- **`buildFormData` function**: This helper function is crucial for file uploads. It converts our reactive `studentObj` into a `FormData` object. It converts the base64 image data back into a `Blob` before appending it to the form data, which is the format expected by servers for file uploads.
+- **Handling Updates**: When updating, we check if the photo has changed. If it has, we include the new photo in the `FormData`. If not, we don't send any photo data, leaving the existing photo untouched on the server.
+- **CRUD functions**: `viewStudent` and `removeStudent` are added to fetch student data for editing and to delete students, respectively.
+- **Props for Callbacks**: The component now accepts `onCreated`, `onUpdated`, and `onDeleted` functions as props. These will be called after the respective API calls succeed, allowing the parent component to react to the changes.
+
+---
+
+### Step 4 - Edit: Updating the Parent Page
+
+Finally, we'll update the main `Student.vue` page to handle the events emitted from the `StudentModal`. This will allow the student list to update in real-time without needing a page refresh.
+
+**File:** `src/components/pages/Student.vue`
+
+```vue
+<template>
+  <div class="content-wrapper">
+    <div class="content-header">
+      <div class="container-fluid">
+        <div class="row mb-2">
+          <div class="col-sm-6">
+            <h1 class="m-0">Students</h1>
+          </div>
+          <div class="col-sm-6">
+            <ol class="breadcrumb float-sm-right">
+              <li class="breadcrumb-item">
+                <router-link :to="{ name: 'Dashboard' }">Dashboard</router-link>
+              </li>
+              <li class="breadcrumb-item active">Students</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="content">
+      <div class="container-fluid">
+        <div class="row">
+          <div class="col-12">
+            <CustomTable :title="'Student List'" :data="students" :columns="columns" />
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <StudentModal ref="StudentModalRef" :onCreated="onStudentCreated" :onUpdated="onStudentUpdated"
+    :onDeleted="onStudentDeleted" />
+</template>
+
+<script setup>
+import { h, ref, onMounted } from 'vue';
+import { apiGetStudentsWithDetails } from '@/functions/api/student';
+import { CloseModal, LoadingModal, MessageModal } from "@/functions/swal";
+import CustomTable from '@/components/includes/controls/CustomTable.vue';
+import emptyImage from '@/assets/images/emptyImage.png';
+import StudentModal from '@/components/includes/modals/StudentModal.vue';
+
+const StudentModalRef = ref(null);
+
+const students = ref([]);
+const columns = [
+  {
+    accessorKey: "photo",
+    header: "",
+    cell: (cell) =>
+      h("img", {
+        style: "max-width: 50px",
+        class: "profile-user-img img-fluid img-circle",
+        src:
+          cell.getValue() || emptyImage,
+      }),
+  },
+  {
+    accessorKey: 'name_kh',
+    header: 'Name (Khmer)',
+  },
+  {
+    accessorKey: 'name_en',
+    header: 'Name (Latin)',
+  },
+  {
+    accessorKey: 'gender.gd_kh_full',
+    header: 'Gender',
+  },
+  {
+    accessorKey: 'phone',
+    header: 'Phone Number',
+  },
+  {
+    accessorFn: ({ creator, created_at }) => creator.name + created_at,
+    header: 'Created By',
+    cell: ({ row }) => [
+      h('div', row.original.created_at),
+      h('div', row.original.creator.name)
+    ],
+  },
+  {
+    accessorFn: ({ updater, updated_at }) => updater.name + updated_at,
+    header: 'Updated By',
+    cell: ({ row }) => [
+      h('div', row.original.updated_at),
+      h('div', row.original.updater.name)
+    ],
+  },
+  {
+    accessorKey: 'action',
+    header: () => [
+      'Actions',
+      h('button',
+        {
+          onClick: () => StudentModalRef.value.showModal(),
+          class: 'btn btn-sm btn-success ml-3'
+        },
+        'Register New'
+      )
+    ],
+    cell: ({
+      row
+    }) => [
+        // delete btn
+        h('button',
+          {
+            onClick: () => StudentModalRef.value.removeStudent(row.original.id),
+            class: 'btn btn-sm btn-outline-danger mx-1'
+          },
+          h('i', { class: 'fa fa-trash' })
+        ),
+        // view btn
+        h('button',
+          {
+            onClick: () => StudentModalRef.value.viewStudent(row.original.id),
+            class: 'btn btn-sm btn-secondary mx-1'
+          },
+          h('i', { class: 'fa fa-eye' })
+        ),
+      ],
+    enableSorting: false,
+    enableGlobalFilter: false,
+  }
+];
+
+
+onMounted(async () => {
+  try {
+    LoadingModal();
+    await generateStudents();
+    return CloseModal();
+  } catch (error) {
+    return MessageModal({ icon: "error", title: "Error", text: error.response?.data?.message || error.message });
+  }
+});
+
+async function generateStudents() {
+  const response = await apiGetStudentsWithDetails();
+  students.value = response.data.students;
+}
+
+const onStudentCreated = (student) => {
+  students.value = [...students.value, student];
+};
+const onStudentUpdated = (student) => {
+  students.value = students.value.map(obj => obj.id !== student.id ? obj : student);
+};
+const onStudentDeleted = (student) => {
+  students.value = students.value.filter(obj => obj.id !== student.id);
+};
+</script>
+```
+
+**Key points:**
+- **Passing Callbacks**: We pass the `onStudentCreated`, `onStudentUpdated`, and `onStudentDeleted` functions as props to the `StudentModal`.
+- **Reactive Updates**:
+  - `onStudentCreated`: Adds the new student to the `students` array.
+  - `onStudentUpdated`: Finds the updated student in the array and replaces it with the new data.
+  - `onStudentDeleted`: Removes the deleted student from the array.
+- **Calling Modal Methods**: The action buttons in the table now correctly call the `viewStudent` and `removeStudent` methods that we exposed from the `StudentModal` component.
+
+---
+
+### Result
+
+With these changes, users can now click the "Create Student" button, fill out the form, and upload a profile picture. The image can be cropped and resized before being submitted. The student list will update instantly after any create, update, or delete operation, providing a smooth and responsive user experience.
