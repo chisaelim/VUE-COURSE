@@ -1,3 +1,13 @@
+# Implementing Full CRUD API Operations in Vue 3
+
+This session completes the Test management functionality with full Create, Read, Update, and Delete (CRUD) operations. You'll implement the action handlers to call API functions, add error handling including backend validation errors, and create helper functions that keep the data table in sync with the server. The form now saves data, loads data for editing, deletes records, and updates the page reactively.
+
+---
+
+## Step 1 - Edit: src/components/pages/Test.vue
+The following code snippets replace the existing code in the Test.vue component. You will be adding API calls, error handling, and data synchronization logic to make the CRUD operations fully functional.
+
+```vue
 <template>
   <div class="content-wrapper">
     <div class="content-header">
@@ -221,3 +231,69 @@ const onTestDeleted = (test) => {
   tests.value = tests.value.filter(obj => obj.id !== test.id);
 };
 </script>
+```
+
+
+**Key points:**
+* Import Additional API Functions
+  - Import all five API functions together at the top of the script.
+  - `apiGetTestsWithDetails` — already used to fetch initial table data.
+  - `apiCreateTest` — POST a new test object to the backend.
+  - `apiReadTest` — GET a single test by ID for editing.
+  - `apiUpdateTest` — PUT changes to an existing test.
+  - `apiDeleteTest` — DELETE a test by ID.
+
+* Implement saveTest() for Create and Update
+  - `LoadingModal()` shows spinner before API call.
+  - `if (testObj.id === null)` — check if creating (no id) or updating (has id).
+  - `apiCreateTest(testObj)` — POST form data; backend returns new test object.
+  - `apiUpdateTest(testObj)` — PUT form data with id; backend returns updated test object.
+  - `onTestCreated()` and `onTestUpdated()` — add/modify item in reactive `tests` array (see Step 5).
+  - `hideModal()` — close form after success.
+  - `MessageModal({ icon: 'success', ... })` — show success notification.
+  - `catch (error)` — handle all error cases.
+  - `if (!response)` — network error (no response from server).
+  - `if (status === 422)` — validation error (invalid form data).
+    - `data.errors[key][0]` — backend Laravel returns errors as arrays; take first message.
+    - `Object.keys(testErrObj).forEach(...)` — loop through all form fields and populate errors.
+    - `CloseModal()` — keep modal open so user can fix validation errors.
+  - `data.message` — generic server error message.
+
+* Implement viewTest() to Load Test Data
+  - `LoadingModal()` shows spinner while fetching.
+  - `apiReadTest(id)` — GET `/api/tests/read/{id}`.
+  - `Object.assign(testObj, response.data.test)` — copy server data into reactive form object. Triggers v-model re-bind.
+  - `showModal()` — open form with data pre-filled.
+  - `CloseModal()` — dismiss spinner.
+  - Form is now in **edit mode** (testObj.id is not null).
+
+* Implement removeTest() with Delete API Call
+  - `.then(async (sw) => { if (sw.isConfirmed) { } })` — execute only if user clicks "Yes, Delete it."
+  - `LoadingModal()` — show spinner while deleting.
+  - `apiDeleteTest(id)` — DELETE `/api/tests/delete/{id}`.
+  - `onTestDeleted()` — remove item from reactive `tests` array (see Step 5).
+  - `MessageModal({ icon: 'success', ... })` — confirm deletion to user.
+  - Error handling with fallback message.
+
+* Add Helper Functions to Sync Table Data
+  - `onTestCreated(test)` — append new test to the array using spread operator `[...tests.value, test]`.
+  - `onTestUpdated(test)` — replace the matching test in array using `.map()`.
+    - `obj.id !== test.id ? obj : test` — keep old items, replace only the one matching the id.
+  - `onTestDeleted(test)` — remove the test from array using `.filter()`.
+    - `obj.id !== test.id` — keep only items that don't match the deleted id.
+  - All three create **new array references** (not mutations) — triggers Vue reactivity and re-renders the table.
+
+---
+
+## Result
+
+After completing these five steps, you will have:
+
+1. ✓ Full Create operation — "Add" button opens modal, form submission calls `apiCreateTest()`, new row appears in table.
+2. ✓ Full Read operation — "View" button calls `apiReadTest()`, loads data into form, opens modal for editing.
+3. ✓ Full Update operation — editing existing test and clicking Save calls `apiUpdateTest()`, table row updates with new data.
+4. ✓ Full Delete operation — "Delete" button shows confirmation, calls `apiDeleteTest()` if confirmed, row disappears from table.
+5. ✓ Error handling — validation errors display inline in form (422 status), network/server errors show modal alerts.
+6. ✓ Table always in sync — reactive helper functions keep `tests` array up-to-date with server state.
+
+The Test management page is now fully functional. All buttons work. The form validates. The table updates in real-time.
