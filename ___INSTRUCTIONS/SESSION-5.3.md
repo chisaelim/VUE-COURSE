@@ -1,3 +1,47 @@
+# Implementing Cascading Address Dropdowns in Vue 3
+
+This session implements a common and powerful UI pattern: cascading dropdowns. You will build out the "Place of Birth" (POB) and "Current Address" (POR) sections of the student registration form. When a user selects a province, the district dropdown will automatically populate with the districts for that province. This pattern continues down to the village level, creating an intuitive and efficient user experience for entering addresses.
+
+---
+
+## Step 1 - Create New: `src/functions/api/geo.js`
+
+Create a new API module for fetching geographical data. This separates the logic for handling provinces, districts, communes, and villages from other asset types.
+
+**Full file (copyable):**
+
+```javascript
+import axios from 'axios';
+
+const APP_API_URL = import.meta.env.VITE_APP_API_URL;
+
+export function apiGetProvinces() {
+  return axios.get(`${APP_API_URL}/provinces`);
+}
+export function apiGetDistrictsByProvince(id) {
+  return axios.get(`${APP_API_URL}/districts/by/province/${id}`);
+}
+export function apiGetCommunesByDistrict(id) {
+  return axios.get(`${APP_API_URL}/communes/by/district/${id}`);
+}
+export function apiGetVillagesByCommune(id) {
+  return axios.get(`${APP_API_URL}/villages/by/commune/${id}`);
+}
+```
+
+**Key points:**
+- **Domain-Specific APIs**: This module is focused solely on geographical data.
+- **Parameterized Functions**: Functions like `apiGetDistrictsByProvince(id)` accept an ID to fetch filtered, dependent data, which is the foundation of the cascading effect.
+
+---
+
+## Step 2 - Edit: `src/components/includes/modals/StudentModal.vue`
+
+Update the `StudentModal` to include the address sections and implement the cascading logic using Vue's `watch` function.
+
+**Full file (copyable):**
+
+```vue
 <template>
   <div class="modal fade" id="STUDENT-MODAL" data-backdrop="static" data-keyboard="false" tabindex="-1">
     <div class="modal-dialog modal-xl">
@@ -458,3 +502,20 @@ defineExpose({
   hideModal,
 });
 </script>
+```
+
+**Key points:**
+- **New Address Sections**: The template now includes two new sections, "Place of Birth (POB)" and "Current Address (POR)", each with four dropdowns (Province, District, Commune, Village).
+- **Separate `ref`s for POB/POR**: `pobDistricts` and `porDistricts` (and so on) are separate reactive arrays. This is crucial because POB and POR are independent of each other.
+- **`watch` for Cascading**: The core of the feature is the `watch` function from Vue's Composition API.
+  - `watch(() => studentObj.pob_province_id, ...)`: This watcher tracks changes to the selected province ID for the POB.
+  - When the province changes, it fetches the corresponding districts and populates `pobDistricts.value`.
+  - It also resets the selected district, commune, and village to `null` to prevent invalid address combinations.
+- **Chained Watchers**: This pattern is repeated for districts (to fetch communes) and communes (to fetch villages), creating a "chain reaction" that powers the cascading effect.
+- **Initial Data**: The `onMounted` hook is updated to also fetch the list of all provinces when the component is first created.
+
+---
+
+## Result
+
+The student registration form is now equipped with fully functional cascading dropdowns for both Place of Birth and Current Address. This guides the user through the process of selecting a valid address, significantly improving data accuracy and user experience. The use of `watch` provides a clean, declarative way to handle the complex dependencies between the address fields.
