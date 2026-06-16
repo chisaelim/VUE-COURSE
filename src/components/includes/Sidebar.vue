@@ -35,6 +35,12 @@
                         Academic Management
                     </li>
                     <li class="nav-item">
+                        <router-link :to="{ name: 'Students' }" active-class="active" class="nav-link">
+                            <i class="nav-icon fas fa-users"></i>
+                            <p>Students</p>
+                        </router-link>
+                    </li>
+                    <li class="nav-item">
                         <router-link :to="{ name: 'Tests' }" active-class="active" class="nav-link">
                             <i class="nav-icon fas fa-vial"></i>
                             <p>Tests</p>
