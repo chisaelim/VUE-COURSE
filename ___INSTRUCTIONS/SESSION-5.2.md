@@ -1,3 +1,48 @@
+# Populating Dropdowns with Master Data in Vue 3
+
+This session enhances the student registration form by fetching and displaying master data (like genders, nationalities, etc.) in dropdown menus. You'll create a new API module for these assets and then modify the `StudentModal` to fetch this data on load and populate `<select>` elements, making the form more dynamic and user-friendly.
+
+---
+
+## Step 1 - Create New: `src/functions/api/asset.js`
+
+Create a new API module dedicated to fetching asset or master data. This keeps data-fetching logic organized and separate from other concerns.
+
+**Full file (copyable):**
+
+```javascript
+import axios from 'axios';
+
+const APP_API_URL = import.meta.env.VITE_APP_API_URL;
+
+export function apiGetAllGenders() {
+  return axios.get(`${APP_API_URL}/assets/all/genders`);
+}
+export function apiGetAllEthnicities() {
+  return axios.get(`${APP_API_URL}/assets/all/ethnicities`);
+}
+export function apiGetAllNationalities() {
+  return axios.get(`${APP_API_URL}/assets/all/nationalities`);
+}
+export function apiGetAllReligions() {
+  return axios.get(`${APP_API_URL}/assets/all/religions`);
+}
+```
+
+**Key points:**
+- **Centralized API Calls**: This file groups all functions related to fetching "asset" data.
+- **Clear Naming**: Functions are named descriptively (e.g., `apiGetAllGenders`), making their purpose obvious.
+- **Environment Variable**: Uses `VITE_APP_API_URL` for the base API path, ensuring consistency and easy configuration.
+
+---
+
+## Step 2 - Edit: `src/components/includes/modals/StudentModal.vue`
+
+Update the `StudentModal` to fetch the master data and use it to populate dropdown menus for Gender, Ethnicity, Nationality, and Religion.
+
+**Full file (copyable):**
+
+```vue
 <template>
   <div class="modal fade" id="STUDENT-MODAL" data-backdrop="static" data-keyboard="false" tabindex="-1">
     <div class="modal-dialog modal-xl">
@@ -235,3 +280,17 @@ defineExpose({
   hideModal,
 });
 </script>
+```
+
+**Key points:**
+- **Dynamic Dropdowns**: New `<select>` elements are added for Gender, Ethnicity, Nationality, and Religion.
+- **`v-for` for Options**: Each `<select>` uses a `v-for` loop to dynamically generate `<option>` tags from the data fetched from the API (e.g., `v-for="{ id, gd_kh_full } in genders"`).
+- **Data Fetching on Mount**: The `onMounted` hook now orchestrates fetching all required master data when the component is created.
+- **`Promise.all`**: Using `Promise.all` allows all four API calls to run in parallel, which is more efficient than running them sequentially. The loading modal is shown before they start and closed after they all complete.
+- **Reactive Data**: New `ref`s (`genders`, `nationalities`, etc.) are created to hold the arrays of data for the dropdowns, ensuring the component updates when the data arrives.
+
+---
+
+## Result
+
+After these changes, the student registration modal is significantly more powerful. Instead of requiring users to know and enter numeric IDs, it presents them with clear, human-readable dropdown menus for selecting gender, ethnicity, nationality, and religion. The data is fetched dynamically, ensuring the options are always up-to-date with the backend.
