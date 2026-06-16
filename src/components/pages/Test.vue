@@ -20,31 +20,7 @@
       <div class="container-fluid">
         <div class="row">
           <div class="col-12">
-            <table class="table table-bordered table-striped">
-              <thead>
-                <tr>
-                  <th>Name (Khmer)</th>
-                  <th>Name (English)</th>
-                  <th>Short Name</th>
-                  <th>Created By</th>
-                  <th>Updated By</th>
-                  <th>Actions <button class="btn btn-sm btn-primary" @click="showModal()">Add</button></th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="test in tests" :key="test.id">
-                  <td>{{ test.name_kh }}</td>
-                  <td>{{ test.name_en }}</td>
-                  <td>{{ test.short_name }}</td>
-                  <td>{{ test.creator.name }}<br>{{ test.created_at }}</td>
-                  <td>{{ test.updater.name }}<br>{{ test.updated_at }}</td>
-                  <td>
-                    <button class="mx-1 btn btn-sm btn-info" @click="viewTest(test.id)">View</button>
-                    <button class="mx-1 btn btn-sm btn-danger" @click="removeTest(test.id)">Delete</button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+            <CustomTable :title="'Test List'" :data="tests" :columns="columns" />
           </div>
         </div>
       </div>
@@ -98,11 +74,77 @@
 <script setup>
 import $ from 'jquery';
 import Swal from 'sweetalert2';
-import { ref, reactive, onMounted } from 'vue';
+import { h, ref, reactive, onMounted } from 'vue';
 import { apiGetTestsWithDetails, apiCreateTest, apiReadTest, apiUpdateTest, apiDeleteTest } from '@/functions/api/test';
 import { CloseModal, LoadingModal, MessageModal } from "@/functions/swal";
+import CustomTable from '@/components/includes/controls/CustomTable.vue';
 
 const tests = ref([]);
+const columns = [
+  {
+    accessorKey: 'name_kh',
+    header: 'Name (Khmer)',
+  },
+  {
+    accessorKey: 'name_en',
+    header: 'Name (English)',
+  },
+  {
+    accessorKey: 'short_name',
+    header: 'Short Name (English)',
+  },
+  {
+    accessorFn: ({ creator, created_at }) => creator.name + created_at,
+    header: 'Created By',
+    cell: ({ row }) => [
+      h('div', row.original.created_at),
+      h('div', row.original.creator.name)
+    ],
+  },
+  {
+    accessorFn: ({ updater, updated_at }) => updater.name + updated_at,
+    header: 'Updated By',
+    cell: ({ row }) => [
+      h('div', row.original.updated_at),
+      h('div', row.original.updater.name)
+    ],
+  },
+  {
+    accessorKey: 'action',
+    header: () => [
+      'Actions',
+      h('button',
+        {
+          onClick: () => showModal(),
+          class: 'btn btn-sm btn-success ml-3'
+        },
+        'Create New'
+      )
+    ],
+    cell: ({
+      row
+    }) => [
+        // delete btn
+        h('button',
+          {
+            onClick: () => removeTest(row.original.id),
+            class: 'btn btn-sm btn-outline-danger mx-1'
+          },
+          h('i', { class: 'fa fa-trash' })
+        ),
+        // view btn
+        h('button',
+          {
+            onClick: () => viewTest(row.original.id),
+            class: 'btn btn-sm btn-secondary mx-1'
+          },
+          h('i', { class: 'fa fa-eye' })
+        ),
+      ],
+    enableSorting: false,
+    enableGlobalFilter: false,
+  }
+];
 
 const testObj = reactive({
   id: null,
