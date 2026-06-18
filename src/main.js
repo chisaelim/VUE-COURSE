@@ -9,10 +9,17 @@ import { useUserStore } from '@/stores/user';
 import { apiVerify } from '@/functions/api/auth';
 import { createPinia } from 'pinia'
 import axios from 'axios';
+import { VueDatePicker } from '@vuepic/vue-datepicker';
+import VueMultiSelect from 'vue-multiselect';
 
 const pinia = createPinia();
 
-createApp(App).use(router).use(pinia).mount('#app');
+const app = createApp(App);
+app.use(router);
+app.use(pinia);
+app.component('VueDatePicker', VueDatePicker);
+app.component('VueMultiSelect', VueMultiSelect);
+app.mount('#app');
 
 const userStore = useUserStore();
 
