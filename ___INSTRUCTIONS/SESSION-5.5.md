@@ -1,3 +1,118 @@
+# Integrating Vue-Multiselect for Advanced Dropdowns
+
+In this session, we will replace the standard HTML `<select>` dropdowns in our student registration form with `vue-multiselect`. This powerful component offers a better user experience with features like searching, filtering, and tagging, which are essential for long lists of options like geographic locations.
+
+---
+
+### Step 1 - Run Command: Install Vue-Multiselect
+
+First, we need to add the `vue-multiselect` package to our project dependencies.
+
+```bash
+npm install vue-multiselect --save
+```
+
+**Key points:**
+- This command downloads the `vue-multiselect` package from the npm registry and adds it to your `package.json` file.
+
+---
+
+### Step 2 - Edit: Register Vue-Multiselect Globally
+
+To make `vue-multiselect` available throughout the application without importing it in every component, we will register it globally in our main entry point, `src/main.js`. We will also register `VueDatePicker` globally for consistency.
+
+**File:** `src/main.js`
+```javascript
+import 'bootstrap/dist/js/bootstrap.bundle.min.js';
+import 'admin-lte/dist/js/adminlte.min.js';
+
+
+import { createApp } from 'vue'
+import App from './App.vue'
+import router from './router';
+import { useUserStore } from '@/stores/user';
+import { apiVerify } from '@/functions/api/auth';
+import { createPinia } from 'pinia'
+import axios from 'axios';
+import { VueDatePicker } from '@vuepic/vue-datepicker';
+import VueMultiSelect from 'vue-multiselect';
+
+const pinia = createPinia();
+
+const app = createApp(App);
+app.use(router);
+app.use(pinia);
+app.component('VueDatePicker', VueDatePicker);
+app.component('VueMultiSelect', VueMultiSelect);
+app.mount('#app');
+
+const userStore = useUserStore();
+
+axios.interceptors.request.use((config) => {
+    const token = userStore.getSanctumToken();
+    if (token && !config.headers.Authorization) {
+        config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+});
+
+router.beforeEach(async (to, from) => {
+    const { guarded } = to.meta;
+    if (guarded === undefined) { // if the route is not guarded, we don't need to verify the token
+        return;
+    }
+
+    try {
+        const response = await apiVerify();
+        const { data } = response;
+        userStore.setState(data.user);
+    } catch (error) {
+        userStore.reset();
+    }
+
+    if (guarded && !userStore.isAuthenticated) { // if the route is guarded and the user is not authenticated, redirect to signin page
+        return { name: 'SignIn' };
+    }
+    if (!guarded && userStore.isAuthenticated) { // if the route is not guarded and the user is authenticated, redirect to dashboard page
+        return { name: 'Dashboard' };
+    }
+});
+```
+
+**Key points:**
+- `import VueMultiSelect from 'vue-multiselect';`: Imports the component from the installed package.
+- `app.component('VueMultiSelect', VueMultiSelect);`: Registers `VueMultiSelect` as a global component, allowing you to use `<VueMultiSelect>` in any component template.
+- We also globally register `VueDatePicker` which was previously used locally.
+
+---
+
+### Step 3 - Edit: Import Component and Font CSS
+
+Next, we need to import the necessary CSS for `vue-multiselect` and `vue-datepicker` to style them correctly. We'll also set up a custom font for better Khmer language display.
+
+**File:** `src/main.css`
+```css
+@import url('https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,400i,700&display=fallback');
+@import '@fortawesome/fontawesome-free/css/all.min.css';
+@import 'icheck-bootstrap/icheck-bootstrap.min.css';
+@import 'admin-lte/dist/css/adminlte.min.css';
+
+@import '@vuepic/vue-datepicker/dist/main.css';
+@import 'vue-multiselect/dist/vue-multiselect.css';
+```
+
+**Key points:**
+- `@import 'vue-multiselect/dist/vue-multiselect.css';`: Imports the default stylesheet for the `vue-multiselect` component.
+- `@import '@vuepic/vue-datepicker/dist/main.css';`: Imports the date picker's stylesheet.
+
+---
+
+### Step 4 - Edit: Implement Vue-Multiselect in the Form
+
+Finally, let's replace the native `<select>` elements in `StudentModal.vue` with our new `<VueMultiSelect>` component. This requires adding computed properties to manage the component's state.
+
+**File:** `src/components/includes/modals/StudentModal.vue`
+```vue
 <template>
   <div class="modal fade" id="STUDENT-MODAL" data-backdrop="static" data-keyboard="false" tabindex="-1">
     <div class="modal-dialog modal-xl">
@@ -610,3 +725,18 @@ defineExpose({
   viewStudent
 });
 </script>
+```
+
+**Key points:**
+- We replaced all `<select>` elements for geographic data with `<VueMultiSelect>`.
+- `v-model` is now bound to new `computed` properties (e.g., `selectedPobProvince`).
+- `track-by="id"` tells `vue-multiselect` to use the `id` property as the unique identifier for each option.
+- `label="name_kh"` tells the component to display the `name_kh` property as the option text.
+- The `computed` properties act as a bridge. `vue-multiselect` works with full objects, but our `studentObj` needs to store only the ID. The `get` and `set` methods of the computed property handle this translation automatically.
+- `:disabled` is used to prevent selection in child dropdowns (e.g., District) until a parent (e.g., Province) is selected.
+
+---
+
+### Result
+
+After these changes, the dropdowns for selecting addresses in the student modal will be replaced with searchable, user-friendly `vue-multiselect` components, significantly improving the form's usability.
