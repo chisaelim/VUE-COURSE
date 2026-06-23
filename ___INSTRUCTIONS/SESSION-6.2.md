@@ -1,3 +1,16 @@
+# Adding Student Profile Display and CRUD Modal Integration
+
+In this session, we enhance the Student Test Management page by adding a student profile card that displays detailed student information. We'll also integrate the StudentModal component to enable full CRUD operations (Create, Read, Update, Delete) for student management directly from the StudentTest page. This provides administrators with a complete interface to manage both student tests and student records in one place.
+
+---
+
+### Step 1 - Edit: Add Student Profile Card UI to StudentTest Component
+
+First, we add a visually appealing student profile card to the StudentTest component. This card displays the selected student's photo, names (in Khmer and English), gender, date of birth, and phone number. It also includes action buttons for adding, updating, and deleting students.
+
+**File:** `src/components/pages/StudentTest.vue`
+
+```vue
 <template>
   <div class="content-wrapper">
     <div class="content-header">
@@ -471,3 +484,27 @@ function onStudentDeleted(student) {
 }
 
 </script>
+```
+
+**Key points:**
+- **Student Profile Card**: Uses Bootstrap grid layout (col-md-6) to display a profile photo on the left and student details on the right
+- **Profile Image**: `:src="selectedStudent?.photo || emptyImage"` displays the student photo or a default empty image with the `img-circle` class for a circular avatar
+- **Student Names**: Shows both Khmer (`name_kh`) and English (`name_en`) names with nullish coalescing (`??`) to display dashes if data is missing
+- **Student Details List**: Uses Bootstrap `list-group` to display gender (ភេទ), date of birth (ថ្ងៃខែឆ្នាំកំណើត), and phone number (លេខទូរស័ព្ទ)
+- **CRUD Buttons**: Three buttons trigger StudentModal actions:
+  - "Add New" (`showModal`): Always enabled, opens the StudentModal for creating a new student
+  - "Update" (`viewStudent`): Disabled when no student is selected (`:disabled="!selectedStudent"`), opens StudentModal for editing
+  - "Delete" (`removeStudent`): Disabled when no student is selected, triggers delete confirmation in StudentModal
+- **StudentModal Component**: Imported at the top with `import StudentModal from '@/components/includes/modals/StudentModal.vue'`
+- **StudentModalRef**: Uses Vue's `ref()` to create a template reference that allows calling methods on the StudentModal component
+- **Callback Functions**: Three functions handle updates when StudentModal performs CRUD operations:
+  - `onStudentCreated()`: Adds the new student to the students list and selects it
+  - `onStudentUpdated()`: Updates the student in the list and keeps it selected
+  - `onStudentDeleted()`: Removes the student from the list and clears selection if the deleted student was selected
+
+---
+
+### Result
+
+The StudentTest page now displays a comprehensive student profile card that shows all relevant student information when a student is selected from the dropdown. Administrators can click the CRUD action buttons to create new students, update existing student information, or delete students without leaving the StudentTest page. The student list automatically updates when operations complete, providing a seamless management experience.
+
