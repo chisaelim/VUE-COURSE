@@ -1,3 +1,194 @@
+# Setting Up pdfMake with Custom Fonts for Certificate Generation
+
+In this session, we will configure pdfMake to generate PDF certificates with custom fonts. We'll install the pdfMake package, set up virtual file systems containing embedded font data, create a pdfmake initialization module, and integrate it into the StudentTest component for multi-language certificate generation. This setup enables the StudentTest component to generate Khmer-English bilingual certificates with proper font rendering in PDFs.
+
+---
+
+### Step 1 - Run Command: Install pdfMake Package
+
+First, install the pdfMake package as a project dependency.
+
+```bash
+npm i pdfmake@0.3.11
+```
+
+**Key points:**
+- `pdfmake@0.3.11` is installed as a project dependency
+- This version is stable and supports virtual file systems for custom fonts
+- The package is now added to `package.json` dependencies
+- The `node_modules/` folder is updated with pdfMake source code
+
+---
+
+### Step 2 - Create New: Virtual File System for Fonts
+
+Create a module that exports embedded font data as a virtual file system for pdfMake. The font data includes standard fonts (Arial, Times, Roboto) and Khmer language fonts.
+
+**File:** `src/assets/vfs_fonts.js`
+
+**Key points:**
+- This file contains an exported object `vfsFonts` with font filenames as keys
+- Each key-value pair represents a font file: filename → base64-encoded font data
+- Includes standard fonts: Roboto (4 variants), Arial (4 variants), Times New Roman (4 variants)
+- Includes Khmer language fonts: KhmerOSMoul, KhmerOSBattambong (normal and bold)
+- Embedding fonts as base64 strings eliminates the need for separate font file assets in production
+- The complete file contains approximately 2MB of encoded font data
+
+---
+
+### Step 3 - Create New: Virtual File System for Images
+
+Create a module that exports embedded image data as a virtual file system. This is reserved for future PDF features like logos or watermarks.
+
+**File:** `src/assets/vfs_images.js`
+
+**Key points:**
+- This module follows the same pattern as `vfs_fonts.js`
+- Currently empty, but structured to hold base64-encoded image data
+- Allows images to be embedded in PDFs without separate file requests
+- Reserved for adding logos, watermarks, or certificate backgrounds in future sessions
+
+---
+
+### Step 4 - Create New: pdfMake Configuration Module
+
+Create a module that initializes pdfMake with virtual file systems and defines font mappings for use throughout the application.
+
+**File:** `src/functions/pdfmake.js`
+
+```javascript
+import pdfMake from 'pdfmake';
+import { vfsFonts } from '@/assets/vfs_fonts.js';
+import { vfsImages } from '@/assets/vfs_images.js';
+
+pdfMake.addVirtualFileSystem(vfsFonts);
+pdfMake.addVirtualFileSystem(vfsImages);
+
+pdfMake.fonts = {
+    Roboto: {
+        normal: 'Roboto-Regular.ttf',
+        bold: 'Roboto-Bold.ttf',
+        italics: 'Roboto-Italic.ttf',
+        bolditalics: 'Roboto-BoldItalic.ttf',
+    },
+    Arial: {
+        normal: 'ARIAL.ttf',
+        bold: 'ARIALBD.ttf',
+        italics: 'ARIALI.ttf',
+        bolditalics: 'ARIALBI.ttf',
+    },
+    Times: {
+        normal: 'times.ttf',
+        bold: 'timesbd.ttf',
+        italics: 'timesi.ttf',
+        bolditalics: 'timesbi.ttf',
+    },
+    KhmerOSMoul: {
+        normal: 'KHMER OS MOUL REGULAR.ttf',
+    },
+    KhmerOSBattambong: {
+        normal: 'KHMER OS BATTAMBANG REGULAR.ttf',
+        bold: 'KHMER OS BATTAMBANG - BOLD.ttf',
+    },
+}
+window.pdfMake = pdfMake;
+```
+
+**Key points:**
+- `pdfMake.addVirtualFileSystem(vfsFonts)`: Registers all font files as virtual assets
+- `pdfMake.addVirtualFileSystem(vfsImages)`: Registers image files (currently empty)
+- `pdfMake.fonts`: Maps user-friendly font names to actual font files with variants
+  - Roboto: Provides normal, bold, italics, and bolditalics variants (modern, clean font)
+  - Arial: Provides all 4 variants (widely supported, sans-serif)
+  - Times: Provides all 4 variants (serif, traditional)
+  - KhmerOSMoul: Khmer display font, normal variant only (for headings/titles)
+  - KhmerOSBattambong: Khmer body font, normal and bold variants (for main text)
+- `window.pdfMake = pdfMake`: Exposes pdfMake globally so Vue components can access it as `window.pdfMake`
+- This setup enables multi-language PDF generation with proper rendering for both English and Khmer text
+
+---
+
+### Step 5 - Edit: Import pdfMake in Application Entry Point
+
+Import the pdfmake configuration at application startup. This must happen before any components try to use pdfMake.
+
+**File:** `src/main.js`
+
+```javascript
+import 'bootstrap/dist/js/bootstrap.bundle.min.js';
+import 'admin-lte/dist/js/adminlte.min.js';
+import '@/functions/pdfmake.js'
+
+import { createApp } from 'vue'
+import App from './App.vue'
+import router from './router';
+import { useUserStore } from '@/stores/user';
+import { apiVerify } from '@/functions/api/auth';
+import { createPinia } from 'pinia'
+import axios from 'axios';
+import { VueDatePicker } from '@vuepic/vue-datepicker';
+import VueMultiSelect from 'vue-multiselect';
+
+const pinia = createPinia();
+
+const app = createApp(App);
+app.use(router);
+app.use(pinia);
+app.component('VueDatePicker', VueDatePicker);
+app.component('VueMultiSelect', VueMultiSelect);
+app.mount('#app');
+
+const userStore = useUserStore();
+
+axios.interceptors.request.use((config) => {
+    const token = userStore.getSanctumToken();
+    if (token && !config.headers.Authorization) {
+        config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+});
+
+router.beforeEach(async (to, from) => {
+    const { guarded } = to.meta;
+    if (guarded === undefined) { // if the route is not guarded, we don't need to verify the token
+        return;
+    }
+
+    try {
+        const response = await apiVerify();
+        const { data } = response;
+        userStore.setState(data.user);
+    } catch (error) {
+        userStore.reset();
+    }
+
+    if (guarded && !userStore.isAuthenticated) { // if the route is guarded and the user is not authenticated, redirect to signin page
+        return { name: 'SignIn' };
+    }
+    if (!guarded && userStore.isAuthenticated) { // if the route is not guarded and the user is authenticated, redirect to dashboard page
+        return { name: 'Dashboard' };
+    }
+});
+```
+
+**Key points:**
+- `import '@/functions/pdfmake.js'` is placed right after third-party library imports
+- It appears before the Vue app creation (`createApp(App)`)
+- This ensures `window.pdfMake` is initialized and available before any component mounts
+- The import order is critical: vendor JS → pdfmake setup → Vue framework initialization
+- Subsequent imports load Vue dependencies, create the app instance, and set up routing/state management
+
+---
+
+### Step 6 - Edit: Integrate pdfMake in StudentTest Component
+
+Update the StudentTest component to use pdfMake for certificate generation. This component has a method `generateStudentTestCertificatesPDF()` that creates bilingual Khmer-English certificates.
+
+**File:** `src/components/pages/StudentTest.vue`
+
+Key method that uses pdfMake:
+
+```vue
 <template>
   <div class="content-wrapper">
     <div class="content-header">
@@ -1191,3 +1382,29 @@ async function generateStudentTestCertificatesPDF(passed_test_details) {
   $('#PDF-MODAL').modal('show');
 }
 </script>
+```
+
+**Key points:**
+- `pdfMake.createPdf(docDefinition)`: Creates a PDF from the document definition object
+- The docDefinition includes header, footer, styles, and multi-page content
+- Font names reference the mappings defined in `pdfmake.js` (Arial, KhmerOSMoul, KhmerOSBattambong)
+- The method generates bilingual certificates with English on the left and Khmer on the right
+- `getDataUrl()` converts the PDF to a data URL for inline viewing in an iframe
+- The PDF is displayed in a modal with ID `#PDF-MODAL`
+- Each student test creates one certificate page; multiple students create multiple pages
+
+---
+
+### Result
+
+After completing these steps:
+
+1. **pdfMake is properly configured** with embedded fonts for multi-language (English and Khmer) support
+2. **Custom fonts are available globally** through `window.pdfMake` for any component to use
+3. **Font resources are embedded**, eliminating runtime file loading issues or CORS problems
+4. **The StudentTest component can generate multi-page certificates** with bilingual content (Khmer and English) rendered correctly in PDF format
+5. **Certificates are dynamically generated** based on selected student test records from the database
+6. **The application startup is lightweight** because all fonts are pre-bundled (no network requests)
+7. **Font definitions are organized logically**: One mapping per language/purpose (Arial for English headings, KhmerOSMoul for Khmer headings, KhmerOSBattambong for Khmer body text)
+
+The pdfMake setup is now fully integrated into the StudentTest component for generating multi-language, multi-page certificates on demand.
