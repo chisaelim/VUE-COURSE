@@ -10,6 +10,7 @@ import Footer from '@/components/includes/Footer.vue';
 
 import Test from '@/components/pages/Test.vue';
 import Student from '@/components/pages/Student.vue';
+import StudentTest from '@/components/pages/StudentTest.vue';
 
 import { createRouter, createWebHistory } from 'vue-router';
 const routes = [
@@ -73,6 +74,17 @@ const routes = [
             sidebar: Sidebar,
             footer: Footer,
             default: Student,
+        },
+        meta: { guarded: true },
+    },
+    {
+        path: '/student-tests',
+        name: 'StudentTests',
+        components: {
+            navbar: Navbar,
+            sidebar: Sidebar,
+            footer: Footer,
+            default: StudentTest,
         },
         meta: { guarded: true },
     },
