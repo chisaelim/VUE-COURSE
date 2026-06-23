@@ -11,6 +11,7 @@ import { createPinia } from 'pinia'
 import axios from 'axios';
 import { VueDatePicker } from '@vuepic/vue-datepicker';
 import VueMultiSelect from 'vue-multiselect';
+import VueApexChart from 'vue3-apexcharts';
 
 const pinia = createPinia();
 
@@ -19,6 +20,7 @@ app.use(router);
 app.use(pinia);
 app.component('VueDatePicker', VueDatePicker);
 app.component('VueMultiSelect', VueMultiSelect);
+app.component('VueApexChart', VueApexChart);
 app.mount('#app');
 
 const userStore = useUserStore();
